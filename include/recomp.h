@@ -92,24 +92,36 @@ typedef uint64_t gpr;
 #define SUB32(a, b) \
     ((gpr)(int32_t)((a) - (b)))
 
+// A project that needs to translate guest addresses, for a game that maps
+// memory through the TLB rather than addressing it through KSEG0, supplies a
+// header here that overrides RECOMP_MEM_OFFSET. The helpers further down expand
+// MEM_W, so they pick the override up too.
+#ifdef RECOMP_OVERRIDES_HEADER
+#include RECOMP_OVERRIDES_HEADER
+#endif
+
+#ifndef RECOMP_MEM_OFFSET
+#define RECOMP_MEM_OFFSET(addr) ((addr) - 0xFFFFFFFF80000000ull)
+#endif
+
 #define MEM_W(offset, reg) \
-    (*(int32_t*)(rdram + ((((reg) + (offset))) - 0xFFFFFFFF80000000)))
+    (*(int32_t*)(rdram + RECOMP_MEM_OFFSET((reg) + (offset))))
 
 #define MEM_H(offset, reg) \
-    (*(int16_t*)(rdram + ((((reg) + (offset)) ^ 2) - 0xFFFFFFFF80000000)))
+    (*(int16_t*)(rdram + (RECOMP_MEM_OFFSET((reg) + (offset)) ^ 2)))
 
 #define MEM_B(offset, reg) \
-    (*(int8_t*)(rdram + ((((reg) + (offset)) ^ 3) - 0xFFFFFFFF80000000)))
+    (*(int8_t*)(rdram + (RECOMP_MEM_OFFSET((reg) + (offset)) ^ 3)))
 
 #define MEM_HU(offset, reg) \
-    (*(uint16_t*)(rdram + ((((reg) + (offset)) ^ 2) - 0xFFFFFFFF80000000)))
+    (*(uint16_t*)(rdram + (RECOMP_MEM_OFFSET((reg) + (offset)) ^ 2)))
 
 #define MEM_BU(offset, reg) \
-    (*(uint8_t*)(rdram + ((((reg) + (offset)) ^ 3) - 0xFFFFFFFF80000000)))
+    (*(uint8_t*)(rdram + (RECOMP_MEM_OFFSET((reg) + (offset)) ^ 3)))
 
 #define SD(val, offset, reg) { \
-    *(uint32_t*)(rdram + ((((reg) + (offset) + 4)) - 0xFFFFFFFF80000000)) = (uint32_t)((gpr)(val) >> 0); \
-    *(uint32_t*)(rdram + ((((reg) + (offset) + 0)) - 0xFFFFFFFF80000000)) = (uint32_t)((gpr)(val) >> 32); \
+    *(uint32_t*)(rdram + RECOMP_MEM_OFFSET((reg) + (offset) + 4)) = (uint32_t)((gpr)(val) >> 0); \
+    *(uint32_t*)(rdram + RECOMP_MEM_OFFSET((reg) + (offset) + 0)) = (uint32_t)((gpr)(val) >> 32); \
 }
 
 static inline uint64_t load_doubleword(uint8_t* rdram, gpr reg, gpr offset) {
